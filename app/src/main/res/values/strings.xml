@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">FDKAACTest</string>
+    <string name="app_tips">录音文件保存在内部存储中的FDKAACTest文件夹下</string>
+    <string name="audio_status_start">start audio</string>
+    <string name="audio_status_stop">stop audio</string>
+    <string name="audio_running">正在录音中...</string>
+    <string name="audio_aac_play">播放aac</string>
+    <string name="audio_pcm_play">播放pcm</string>
+</resources>
