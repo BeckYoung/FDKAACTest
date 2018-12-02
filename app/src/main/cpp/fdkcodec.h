@@ -23,6 +23,10 @@ JNIEXPORT jint JNICALL Java_com_example_fdkaactest_fdkaac_FDKCodec_initEncoder
 JNIEXPORT jbyteArray JNICALL Java_com_example_fdkaactest_fdkaac_FDKCodec_encode
         (JNIEnv *, jobject, jshortArray,jint len);
 
+JNIEXPORT jbyteArray JNICALL
+Java_com_example_fdkaactest_fdkaac_FDKCodec_encodeB(JNIEnv *env, jobject instance,
+                                                                   jbyteArray input_, jint len);
+
 JNIEXPORT void JNICALL Java_com_example_fdkaactest_fdkaac_FDKCodec_releaseEncoder
         (JNIEnv *, jobject);
 

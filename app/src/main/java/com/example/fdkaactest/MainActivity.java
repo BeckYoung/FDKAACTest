@@ -2,10 +2,12 @@ package com.example.fdkaactest;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.media.AudioTrack;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
+import android.text.TextUtils;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
@@ -15,16 +17,21 @@ import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
 
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
     public static final int AUDIO_RUNNING = 1;
     public static final int AUDIO_STOP = 0;
+    public static final int AUDIO_PCM_RUNNING = 2;
+    public static final int AUDIO_PCM_STOP = -2;
     private Button btn_voice;
     private TextView tv_audio;
     private Button btn_aac_play;
     private Button btn_pcm_play;
     private AudioRecordTask audioRecordTask;
+    private AudioTrackTast audioTrackTast;
+    private ExecutorService executorPool;
 
 
     @Override
@@ -47,6 +54,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         EventBus.getDefault().register(this);
         audioRecordTask = new AudioRecordTask();
+        audioTrackTast=new AudioTrackTast();
+        executorPool= Executors.newSingleThreadExecutor();
         btn_aac_play.setOnClickListener(this);
         btn_pcm_play.setOnClickListener(this);
         btn_voice.setOnClickListener(this);
@@ -79,12 +88,21 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     // 正在录音,停止录音
                     audioRecordTask.setAudioRunning(false);
                 }else {
-                    Executors.newSingleThreadExecutor().execute(audioRecordTask);
+                    executorPool.execute(audioRecordTask);
                 }
                 break;
             case R.id.btn_aac_play:
                 break;
             case R.id.btn_pcm_play:
+                if (audioRecordTask.isAudioRunning()) {
+                    Toast.makeText(this,"正在录音，无法播放！",Toast.LENGTH_LONG).show();
+                } else {
+                    if(audioTrackTast.getPlayStatus()== AudioTrack.PLAYSTATE_PLAYING){
+                        audioTrackTast.setPlayStatus(AudioTrack.PLAYSTATE_STOPPED);
+                    }else {
+                        executorPool.execute(audioTrackTast);
+                    }
+                }
                 break;
             default:
                 break;
@@ -93,12 +111,21 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void onMainMessage(MainActMessage message){
-        if(message.getActionType()==AUDIO_RUNNING){
+        int type=message.getActionType();
+        if(!TextUtils.isEmpty(message.getPcmFilePath())){
+            audioTrackTast.setFilePath(message.getPcmFilePath());
+        }
+
+        if(type==AUDIO_RUNNING){
             tv_audio.setVisibility(View.VISIBLE);
             btn_voice.setText(R.string.audio_status_stop);
-        }else {
+        }else if(type==AUDIO_STOP){
             tv_audio.setVisibility(View.GONE);
             btn_voice.setText(R.string.audio_status_start);
+        } else if(type== AUDIO_PCM_RUNNING){
+            btn_pcm_play.setText(R.string.audio_pcm_status_stop);
+        } else if(type== AUDIO_PCM_STOP){
+            btn_pcm_play.setText(R.string.audio_pcm_status_play);
         }
     }
 
@@ -110,6 +137,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     public static class MainActMessage{
         private int actionType;
+        private String pcmFilePath;
+
+        public String getPcmFilePath() {
+            return pcmFilePath;
+        }
+
+        public void setPcmFilePath(String pcmFilePath) {
+            this.pcmFilePath = pcmFilePath;
+        }
 
         public int getActionType() {
             return actionType;

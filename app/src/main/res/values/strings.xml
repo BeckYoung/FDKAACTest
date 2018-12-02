@@ -6,4 +6,7 @@
     <string name="audio_running">正在录音中...</string>
     <string name="audio_aac_play">播放aac</string>
     <string name="audio_pcm_play">播放pcm</string>
+
+    <string name="audio_pcm_status_play">播放pcm</string>
+    <string name="audio_pcm_status_stop">停止pcm</string>
 </resources>

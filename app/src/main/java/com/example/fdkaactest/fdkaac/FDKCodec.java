@@ -27,6 +27,14 @@ public class FDKCodec {
                             int channelCount, int bitRate);
     public native byte[] encode(short[] input,int len);
 
+    /**
+     * 该方法会有噪音问题，不能使用
+     * @param input
+     * @param len
+     * @return
+     */
+    public native byte[] encodeB(byte[] input,int len);
+
     public native void releaseEncoder();
 
     public native void initDecoder();

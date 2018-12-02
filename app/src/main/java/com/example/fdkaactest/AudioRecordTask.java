@@ -26,9 +26,6 @@ public class AudioRecordTask implements Runnable {
         minBufferSize = AudioRecord.getMinBufferSize(sampleRateInHz, channelConfig, audioFormat);
         Log.d(TAG,"minBufferSize="+minBufferSize);
 
-        // 设置音量
-        //audioTrack.setVolume(2f) ;
-
     }
 
     @Override
@@ -45,48 +42,46 @@ public class AudioRecordTask implements Runnable {
         channelCount=audioRecord.getChannelCount();
         audioRecord.startRecording();
         isAudioRunning=true;
-        MainActivity.MainActMessage mainActMessage=new MainActivity.MainActMessage();
-        mainActMessage.setActionType(MainActivity.AUDIO_RUNNING);
-        EventBus.getDefault().post(mainActMessage);
-
-        int bitRate=sampleRateInHz*channelCount*3/2; //编码比特率
-        //int bitRate=64000; //编码比特率
-        int frameLength=fdkCodec.initEncoder(sampleRateInHz,channelCount,bitRate);
-        if(frameLength>0){
-            bufferSize=frameLength*channelCount*2;
-        }
-        short[] readBuffer = new short[bufferSize];
-
-        byte[] encodedData;
         FileUtil fileAAC=new FileUtil(FileUtil.AAC_EXTER);
         fileAAC.init();
         FileUtil filePCM=new FileUtil(FileUtil.PCM_EXTER);
         filePCM.init();
+        MainActivity.MainActMessage mainActMessage=new MainActivity.MainActMessage();
+        mainActMessage.setActionType(MainActivity.AUDIO_RUNNING);
+        mainActMessage.setPcmFilePath(filePCM.getFilePath());
+        EventBus.getDefault().post(mainActMessage);
+
+        //int bitRate=sampleRateInHz*channelCount*3/2; //编码比特率
+        int bitRate=72000; //编码比特率
+        int frameLength=fdkCodec.initEncoder(sampleRateInHz,channelCount,bitRate);
+//        if(frameLength>0){
+//            bufferSize=frameLength*channelCount*2;
+//        }
+        short[] readBuffer = new short[bufferSize>>1];
+
+//        byte[] readBuffer=new byte[bufferSize];
+
+        byte[] encodedData;
         while (isAudioRunning) {
 
-            int readCount = audioRecord.read(readBuffer, 0, bufferSize);
-            Log.d(TAG,"AudioRecord bufferSize="+(bufferSize)+"readCount="+readCount);
+            int readCount = audioRecord.read(readBuffer, 0, bufferSize>>1);
+            Log.d(TAG,"AudioRecord bufferSize="+(bufferSize>>1)+",readCount="+readCount);
             if(readCount>0){
-                filePCM.write(readBuffer);
-            }
-            encodedData=fdkCodec.encode(readBuffer,readCount);
-            if(encodedData!=null){
-                fileAAC.write(encodedData);
-            }else {
-                Log.d(TAG,"encode fail");
+                //filePCM.write(readBuffer);
+                encodedData=fdkCodec.encode(readBuffer,readCount);
+                if(encodedData!=null){
+                    fileAAC.write(encodedData);
+                }else {
+                    Log.d(TAG,"encode fail");
+                }
             }
 
         }
-        // flush decode buffer data
-//        encodedData=fdkCodec.encode(null);
-//        if(encodedData!=null){
-//            fileAAC.write(encodedData);
-//        }
 
         Log.d(TAG,"AudioRecord stop");
-//        audioRecord.stop();
+        audioRecord.stop();
         audioRecord.release();
-        fdkCodec.releaseEncoder();
+        //fdkCodec.releaseEncoder();
         fileAAC.release();
         filePCM.release();
         MainActivity.MainActMessage messageStop=new MainActivity.MainActMessage();

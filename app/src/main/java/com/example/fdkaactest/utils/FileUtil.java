@@ -30,7 +30,7 @@ public class FileUtil {
             if (!file.exists()) {
                 file.mkdir();
             }
-            SimpleDateFormat sdf=new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            SimpleDateFormat sdf=new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss");
             String fileName=sdf.format(new Date())+exter;
             filePath = file.getPath()+File.separator+fileName;
         }
@@ -45,9 +45,13 @@ public class FileUtil {
     }
 
     public void write(byte[] data) {
+        this.write(data,data.length);
+    }
+
+    public void write(byte[] data,int len) {
         try {
             if (fos != null) {
-                fos.write(data, 0, data.length);
+                fos.write(data, 0, len);
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -75,5 +79,13 @@ public class FileUtil {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public String getFilePath() {
+        return filePath;
+    }
+
+    public void setFilePath(String filePath) {
+        this.filePath = filePath;
     }
 }

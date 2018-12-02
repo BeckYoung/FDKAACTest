@@ -92,11 +92,8 @@ JNIEXPORT jbyteArray JNICALL
 Java_com_example_fdkaactest_fdkaac_FDKCodec_encode(JNIEnv *env, jobject instance, jshortArray input_,jint len) {
 
     jshort *input = NULL;
-    int input_size=info.frameLength*2*info.inputChannels;
-    //int sizeInBuffer =len;
     if (NULL != input_) {
         input = env->GetShortArrayElements(input_, NULL);
-        //sizeInBuffer = env->GetArrayLength(input_);
     }
 
     AACENC_BufDesc inBufDesc = {0};
@@ -117,13 +114,13 @@ Java_com_example_fdkaactest_fdkaac_FDKCodec_encode(JNIEnv *env, jobject instance
         inBufDesc.numBufs = 1;
         inBufDesc.bufferIdentifiers = &inIdentifier;
         inBufDesc.bufs = &in_ptr;
-        inBufDesc.bufSizes = &input_size;
+        inBufDesc.bufSizes = &len;
         inBufDesc.bufElSizes = &inElSizes;
     }
 
     int outBufferSize = info.maxOutBufBytes;
     LOGD("before encode --> numInSamples %d   bufSizes %d outBufferSize %d", inArgs.numInSamples,
-         input_size,outBufferSize);
+         len,outBufferSize);
     int8_t outBuffer[outBufferSize];
 
     int outIdentifier = OUT_BITSTREAM_DATA;
@@ -163,6 +160,85 @@ Java_com_example_fdkaactest_fdkaac_FDKCodec_encode(JNIEnv *env, jobject instance
 }
 
 
+JNIEXPORT jbyteArray JNICALL
+Java_com_example_fdkaactest_fdkaac_FDKCodec_encodeB(JNIEnv *env, jobject instance,
+                                                                   jbyteArray input_, jint len) {
+    //不能使用byte数组，jni中jbyte为signed char,需要usigined char对应解码库中的uint8_t
+    jbyte *input = env->GetByteArrayElements(input_, NULL);
+
+    AACENC_BufDesc inBufDesc = {0};
+    AACENC_BufDesc outBufDesc = {0};
+
+    AACENC_InArgs inArgs = {0};
+    AACENC_OutArgs outArgs = {0};
+
+    int inIdentifier = IN_AUDIO_DATA;
+    int inElSizes = 2;
+
+    int input_size = info.frameLength*2*info.inputChannels;
+    int8_t *in_ptr = input;
+    int16_t convert_buf[input_size];
+    int i = 0;
+    for (i = 0; i < len/2; i++) {
+        const int8_t* in = &in_ptr[2*i];
+        convert_buf[i] = in[0] | (in[1] << 8);
+    }
+    int in_size = i;
+    if (len <= 0) {
+        inArgs.numInSamples = -1;
+    } else {
+        inArgs.numInSamples = len/2;
+
+        void *inBuffers=convert_buf;
+        inBufDesc.numBufs = 1;
+        inBufDesc.bufferIdentifiers = &inIdentifier;
+        inBufDesc.bufs = &inBuffers;
+        inBufDesc.bufSizes = &in_size;
+        inBufDesc.bufElSizes = &inElSizes;
+    }
+
+//    int outBufferSize = info.maxOutBufBytes;
+    int outBufferSize = 20480;
+    LOGD("before encode --> numInSamples %d   bufSizes %d outBufferSize %d", inArgs.numInSamples,
+         in_size,outBufferSize);
+    int8_t outBuffer[outBufferSize];
+
+    int outIdentifier = OUT_BITSTREAM_DATA;
+    int bufElSizes = 1;
+    void *out_ptr = outBuffer;
+
+    outBufDesc.numBufs = 1;
+    outBufDesc.bufs = &out_ptr;
+    outBufDesc.bufferIdentifiers = &outIdentifier;
+    outBufDesc.bufSizes = &outBufferSize;
+    outBufDesc.bufElSizes = &bufElSizes;
+
+    int code = aacEncEncode(gAacEncoder, &inBufDesc, &outBufDesc, &inArgs, &outArgs);
+
+    if (code == AACENC_ENCODE_EOF) {
+        LOGD("Encode finished,  flush");
+    } else if (code == AACENC_OK) {
+        LOGD("Encode is in processing");
+    } else {
+        LOGD("Error happened code: %d", code);
+    }
+
+    LOGD("after encode --> numOutBytes %d   numInSamples %d", outArgs.numOutBytes,
+         outArgs.numInSamples);
+
+    jbyteArray outArray = NULL;
+    if (outArgs.numOutBytes != 0) {
+        outArray = env->NewByteArray(outArgs.numOutBytes);
+        env->SetByteArrayRegion(outArray, 0, outArgs.numOutBytes, outBuffer);
+    }
+
+//    free(convert_buf);
+    env->ReleaseByteArrayElements(input_, input, 0);
+
+    return outArray;
+}
+
+
 JNIEXPORT void JNICALL
 Java_com_example_fdkaactest_fdkaac_FDKCodec_releaseEncoder(JNIEnv *env, jobject instance) {
 
@@ -178,14 +254,16 @@ Java_com_example_fdkaactest_fdkaac_FDKCodec_releaseEncoder(JNIEnv *env, jobject 
 }
 
 HANDLE_AACDECODER gAacDecoder;
+CStreamInfo *decodeInfo;
 int16_t *decodeBuffer;
 uint8_t *outBuffer;
 int outBufferSize = 2 * 8 * 2048;
 
 JNIEXPORT void JNICALL
-Java_com_example_fdkaactest_fdkaac_FDKCodec_decode(JNIEnv *env, jobject instance) {
+Java_com_example_fdkaactest_fdkaac_FDKCodec_initDecoder(JNIEnv *env, jobject instance) {
 
     gAacDecoder = aacDecoder_Open(TT_MP4_ADTS, 1);
+    decodeInfo=aacDecoder_GetStreamInfo(gAacDecoder);
 
 }
 
